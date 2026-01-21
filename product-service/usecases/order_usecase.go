@@ -34,6 +34,7 @@ func (u *orderUsecase) CreateOrder(userID uint, req *entities.CreateOrderRequest
 	var totalPrice float64
 	var orderItems []entities.OrderItem
 
+	// Validate products and calculate total
 	for _, item := range req.Items {
 		product, err := u.productRepo.FindByID(item.ProductID)
 		if err != nil {
@@ -53,16 +54,30 @@ func (u *orderUsecase) CreateOrder(userID uint, req *entities.CreateOrderRequest
 		totalPrice += product.Price * float64(item.Quantity)
 	}
 
+	// Create order first
 	order := &entities.Order{
 		UserID:     userID,
 		Status:     entities.OrderStatusPending,
 		TotalPrice: totalPrice,
-		Items:      orderItems,
 	}
 
 	if err := u.orderRepo.Create(order); err != nil {
 		return nil, err
 	}
+
+	// Now set OrderID and create items explicitly
+	for i := range orderItems {
+		orderItems[i].OrderID = order.ID
+	}
+
+	// Create order items (you'll need to add this method to your repository)
+	if err := u.orderRepo.CreateOrderItems(orderItems); err != nil {
+		// If items creation fails, you might want to rollback the order
+		return nil, err
+	}
+
+	// Set items back to order for response
+	order.Items = orderItems
 
 	if err := u.publisher.PublishOrderPlaced(order.ID); err != nil {
 		log.Printf("Failed to publish order placed message: %v", err)

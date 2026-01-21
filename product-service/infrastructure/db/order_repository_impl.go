@@ -19,6 +19,13 @@ func (r *orderRepository) Create(order *entities.Order) error {
 	return r.db.Create(order).Error
 }
 
+func (r *orderRepository) CreateOrderItems(orderItems []entities.OrderItem) error {
+	if len(orderItems) == 0 {
+		return nil
+	}
+	return r.db.Create(&orderItems).Error
+}
+
 func (r *orderRepository) FindByID(id uint) (*entities.Order, error) {
 	var order entities.Order
 	err := r.db.Preload("Items.Product").First(&order, id).Error
